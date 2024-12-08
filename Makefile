@@ -1,6 +1,7 @@
 # Compiler and flags
 CXX := g++
-CXXFLAGS := -Wall -Wextra -std=c++17
+CXXFLAGS := -Wall -Wextra -std=c++17 -I/usr/include/spdlog -I/usr/include/eigen3
+LDFLAGS := -L/usr/lib -lspdlog
 
 # Directories
 SRC_DIR := src
@@ -20,12 +21,12 @@ all: $(TARGET)
 # Link object files to create the final binary
 $(TARGET): $(OBJ_FILES)
 	@echo "Linking..."
-	$(CXX) $(CXXFLAGS) $(OBJ_FILES) -o $@
+	$(CXX) $(CXXFLAGS) $(OBJ_FILES) $(LDFLAGS) -o $@
 
 # Compile source files into object files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
 	@echo "Compiling $<..."
-	$(CXX) $(CXXFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Ensure the build directory exists
 $(BUILD_DIR):
