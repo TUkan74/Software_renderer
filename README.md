@@ -38,8 +38,8 @@ software-renderer/
 ### Clone the Repository
 Clone the project repository:
 ```bash
-git clone <repository-url>
-cd software-renderer
+git clone https://github.com/TUkan74/Software_renderer.git
+cd Software-renderer
 ```
 
 ### Build the Project
