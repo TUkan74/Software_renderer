@@ -87,6 +87,62 @@ scripts\build_windows.bat rebuild all
 - Run the commands from a Command Prompt or PowerShell window.
 - Ensure all prerequisites are installed before running the script.
 
+## Linux
+
+For Linux, you can use the provided Makefile to build, clean, and manage the project. This requires CMake, Make, and a C++ compiler such as GCC or Clang.
+
+### Prerequisites
+- CMake: Version 3.10 or higher.
+- Make: Build tool.
+- GCC or Clang: C++ compiler.
+
+### Usage
+
+1. Navigate to the Project Root Directory
+2. Ensure you are in the root directory of the project (where CMakeLists.txt is located).
+
+#### Available Commands
+
+Build the Project
+```sh
+make build
+```
+- Configures the project using CMake.
+- Builds the project using Make.
+- Outputs the executable in build/software-renderer.
+
+Clean the Build
+```sh
+make clean
+```
+- Removes build artifacts within the build directory.
+
+Clean All
+```sh
+make clean-all
+```
+- Deletes the entire build directory for a fresh start.
+
+Rebuild the Project
+```sh
+make rebuild
+```
+- Cleans the build directory and rebuilds the project.
+
+Run the Project
+```sh
+make run
+```
+- Runs the compiled binary located in the build directory.
+
+Help
+```sh
+make help
+```
+- Displays available targets and their usage.
+
+
+
 
 ##### Logging and Output
 - The program generates a log file in the `logs/` directory (e.g., `logs/app.log`).
