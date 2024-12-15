@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
-project(SoftwareRenderer)
+project(SoftwareRenderer LANGUAGES C CXX)  # Specify only C and C++ languages
 
-set(CMAKE_CXX_STANDARD 17)
+# Disable Fortran explicitly
+set(CMAKE_DISABLE_FIND_PACKAGE_Fortran TRUE)
+set(CMAKE_Fortran_COMPILER "")
+
+set(CMAKE_CXX_STANDARD 20)
+
 
 # Include directories
 include_directories(include)
@@ -14,19 +19,16 @@ add_executable(software-renderer ${SRC_FILES})
 
 include(FetchContent)
 
+# Fetch spdlog library
 FetchContent_Declare(
     spdlog
     GIT_REPOSITORY https://github.com/gabime/spdlog.git
     GIT_TAG v1.11.0 # Use the latest stable version or specify one
 )
-
 FetchContent_MakeAvailable(spdlog)
-
 target_link_libraries(software-renderer PRIVATE spdlog::spdlog)
 
-
-# Eigen library
-include(FetchContent)
+# Fetch Eigen library
 FetchContent_Declare(
     Eigen
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
