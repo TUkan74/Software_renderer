@@ -129,15 +129,6 @@ echo rebuild all   - Remove the entire build directory and then build.
 goto :end
 
 REM ===================================================================
-REM Function to check if a command exists
-:command_exists
-set "command_to_check=%~1"
-for %%A in ("%PATH:;=" "%") do if exist "%%~A\%command_to_check%" (
-    exit /b 0
-)
-exit /b 1
-
-REM ===================================================================
 REM Function to build the project
 :build_project
 
