@@ -83,6 +83,13 @@ scripts\build_windows.bat rebuild all
 ```
 - Deletes the entire `build` directory, reconfigures the project, and builds it from scratch.
 
+###### Run the program
+To run the prgram navigate to ```build\Release``` directory and run .exe file
+```cmd
+cd build\Release
+.\software-renderer.exe
+```
+
 #### Notes
 - Run the commands from a Command Prompt or PowerShell window.
 - Ensure all prerequisites are installed before running the script.
