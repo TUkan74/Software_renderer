@@ -16,3 +16,9 @@ logs/*
 *.log
 *.exe
 *.out
+
+# Temporary files
+temp/*
+
+# Visual Studio
+.vs/*

@@ -29,7 +29,7 @@ if /I "%~1"=="clean" (
         goto :end
     ) else (
         set "BUILD_DIR=build\Release"
-        set "E+*--XEC_NAME=software-renderer.exe"
+        set "EXEC_NAME=software-renderer.exe"
 
         echo Checking for executable in: !BUILD_DIR!
         if exist "!BUILD_DIR!\!EXEC_NAME!" (
@@ -44,7 +44,6 @@ if /I "%~1"=="clean" (
             echo !EXEC_NAME! not found in !BUILD_DIR!.
         )
 
-        popd
         echo.
         echo Clean operation completed.
         goto :end
@@ -82,7 +81,7 @@ if /I "%~1"=="rebuild" (
             echo Build directory does not exist. Nothing to clean.
         ) else (
             set "BUILD_DIR=build\Release"
-            set "E+*--XEC_NAME=software-renderer.exe"
+            set "EXEC_NAME=software-renderer.exe"
 
             echo Checking for executable in: !BUILD_DIR!
             if exist "!BUILD_DIR!\!EXEC_NAME!" (
@@ -96,8 +95,6 @@ if /I "%~1"=="rebuild" (
             ) else (
                 echo !EXEC_NAME! not found in !BUILD_DIR!.
             )
-
-            popd
         )
         
         REM -----------------------------------------------------------
@@ -132,13 +129,53 @@ REM ===================================================================
 REM Function to build the project
 :build_project
 
+REM Find and verify CMake installation
+echo Checking for CMake...
 
-REM Verify CMake installation
+REM Try direct cmake command first
 cmake --version >nul 2>&1
 if !ERRORLEVEL! NEQ 0 (
-    echo CMake installation failed.
+    echo CMake not found in PATH. Checking common installation locations...
+    
+    REM Define CMake paths individually to avoid issues with spaces
+    set "CMAKE_PATH1=C:\Program Files\CMake\bin\cmake.exe"
+    set "CMAKE_PATH2=C:\Program Files (x86)\CMake\bin\cmake.exe"
+    set "CMAKE_PATH3=%LOCALAPPDATA%\Programs\CMake\bin\cmake.exe"
+    
+    if exist "!CMAKE_PATH1!" (
+        echo Found CMake at: !CMAKE_PATH1!
+        set "CMAKE_EXE=!CMAKE_PATH1!"
+        goto :cmake_found
+    )
+    
+    if exist "!CMAKE_PATH2!" (
+        echo Found CMake at: !CMAKE_PATH2!
+        set "CMAKE_EXE=!CMAKE_PATH2!"
+        goto :cmake_found
+    )
+    
+    if exist "!CMAKE_PATH3!" (
+        echo Found CMake at: !CMAKE_PATH3!
+        set "CMAKE_EXE=!CMAKE_PATH3!"
+        goto :cmake_found
+    )
+    
+    echo.
+    echo ERROR: CMake not found. Please install CMake and ensure it's in your PATH.
+    echo You can download CMake from: https://cmake.org/download/
+    echo.
+    echo After installing, you may need to:
+    echo 1. Restart your command prompt, or
+    echo 2. Add CMake to your PATH manually, or
+    echo 3. Use the full path to cmake.exe
+    echo.
     goto :end
+) else (
+    echo CMake found in PATH.
+    set "CMAKE_EXE=cmake"
 )
+
+:cmake_found
 
 REM Create and enter build directory
 if not exist build mkdir build
@@ -146,19 +183,37 @@ cd build
 
 REM Configure the project with CMake
 echo Configuring the project with CMake...
-cmake -G "Visual Studio 17 2022" ..
+
+if "!CMAKE_EXE!"=="cmake" (
+    cmake -G "Visual Studio 17 2022" ..
+) else (
+    "!CMAKE_EXE!" -G "Visual Studio 17 2022" ..
+)
+
 if !ERRORLEVEL! NEQ 0 (
     echo CMake configuration failed.
+    cd ..
     goto :end
 )
 
 REM Build the project with CMake
 echo Building the project with CMake...
-cmake --build . --config Release
+
+if "!CMAKE_EXE!"=="cmake" (
+    cmake --build . --config Release
+) else (
+    "!CMAKE_EXE!" --build . --config Release
+)
+
 if !ERRORLEVEL! NEQ 0 (
     echo Build failed.
+    cd ..
     goto :end
 )
 
 echo Build completed successfully.
+cd ..
 goto :end
+
+:end
+exit /B 0

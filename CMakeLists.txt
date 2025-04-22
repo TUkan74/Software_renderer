@@ -7,11 +7,14 @@ set(CMAKE_Fortran_COMPILER "")
 
 set(CMAKE_CXX_STANDARD 20)
 
+# Create directories if they don't exist
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/logs)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/examples)
 
 # Include directories
 include_directories(include)
 
-# Source files
+# Source files - gather all cpp files in src directory
 file(GLOB SRC_FILES src/*.cpp)
 
 # Add executable
@@ -36,3 +39,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Eigen)
 target_include_directories(software-renderer PRIVATE ${eigen_SOURCE_DIR})
+
+# Define a custom target to generate test textures
+add_custom_target(
+    generate_test_textures
+    COMMAND software-renderer --generate-test-textures
+    DEPENDS software-renderer
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Generating test textures"
+)
