@@ -80,6 +80,9 @@ void Application::setRenderMode(RenderMode mode) {
             case RenderMode::TEXTURED_SHADED:
                 modeName = "TEXTURED_SHADED";
                 break;
+            case RenderMode::COLORFUL:
+                modeName = "COLORFUL";
+                break;
         }
         
         spdlog::info("Render mode set to {}", modeName);

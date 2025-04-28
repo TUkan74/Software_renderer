@@ -1,9 +1,10 @@
 #include "Texture.h"
 #include <spdlog/spdlog.h>
 #include <cmath>
+#include <fstream>
 
 /**
- * @brief Generates a test checkerboard texture
+ * @brief Generates a test checkerboard texture and saves it directly using a robust approach
  * @param width Width of the texture
  * @param height Height of the texture
  * @param checkerSize Size of the checker pattern
@@ -11,11 +12,9 @@
  * @return True if successful, false otherwise
  */
 bool generateCheckerboardTexture(int width, int height, int checkerSize, const std::string& filename) {
-    Texture texture;
-    texture.setWidth(width);
-    texture.setHeight(height);
+    spdlog::info("Generating checkerboard texture {}x{} with checker size {}", width, height, checkerSize);
     
-    // Generate checkerboard pattern
+    // Create the texture data
     std::vector<uint32_t> data(width * height);
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
@@ -34,23 +33,55 @@ bool generateCheckerboardTexture(int width, int height, int checkerSize, const s
         }
     }
     
-    texture.setData(data);
-    return texture.saveToTGA(filename);
+    // Create and save TGA file directly
+    std::ofstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        spdlog::error("Could not open file for writing: {}", filename);
+        return false;
+    }
+    
+    // TGA header - Simple uncompressed true color with no color map
+    uint8_t header[18] = {0};
+    header[2] = 2;  // Uncompressed RGB
+    header[12] = width & 0xFF;
+    header[13] = (width >> 8) & 0xFF;
+    header[14] = height & 0xFF;
+    header[15] = (height >> 8) & 0xFF;
+    header[16] = 32;  // 32 bits per pixel (RGBA)
+    header[17] = 0x28;  // 0x20 = top-left origin, 0x08 = 8 bits alpha
+    
+    file.write(reinterpret_cast<const char*>(header), sizeof(header));
+    
+    // Write pixel data
+    for (int y = height - 1; y >= 0; y--) {
+        for (int x = 0; x < width; x++) {
+            uint32_t pixel = data[y * width + x];
+            uint8_t bgra[4];
+            bgra[0] = (pixel >> 16) & 0xFF;  // B (from R)
+            bgra[1] = (pixel >> 8) & 0xFF;   // G
+            bgra[2] = pixel & 0xFF;          // R (from B)
+            bgra[3] = (pixel >> 24) & 0xFF;  // A
+            
+            file.write(reinterpret_cast<const char*>(bgra), 4);
+        }
+    }
+    
+    file.close();
+    spdlog::info("Checkerboard texture saved successfully to {}", filename);
+    return true;
 }
 
 /**
- * @brief Generates a test gradient texture
+ * @brief Generates a test gradient texture and saves it directly
  * @param width Width of the texture
  * @param height Height of the texture
  * @param filename Output filename
  * @return True if successful, false otherwise
  */
 bool generateGradientTexture(int width, int height, const std::string& filename) {
-    Texture texture;
-    texture.setWidth(width);
-    texture.setHeight(height);
+    spdlog::info("Generating gradient texture {}x{}", width, height);
     
-    // Generate gradient pattern
+    // Create the texture data
     std::vector<uint32_t> data(width * height);
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
@@ -63,8 +94,42 @@ bool generateGradientTexture(int width, int height, const std::string& filename)
         }
     }
     
-    texture.setData(data);
-    return texture.saveToTGA(filename);
+    // Create and save TGA file directly
+    std::ofstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        spdlog::error("Could not open file for writing: {}", filename);
+        return false;
+    }
+    
+    // TGA header - Simple uncompressed true color with no color map
+    uint8_t header[18] = {0};
+    header[2] = 2;  // Uncompressed RGB
+    header[12] = width & 0xFF;
+    header[13] = (width >> 8) & 0xFF;
+    header[14] = height & 0xFF;
+    header[15] = (height >> 8) & 0xFF;
+    header[16] = 32;  // 32 bits per pixel (RGBA)
+    header[17] = 0x28;  // 0x20 = top-left origin, 0x08 = 8 bits alpha
+    
+    file.write(reinterpret_cast<const char*>(header), sizeof(header));
+    
+    // Write pixel data
+    for (int y = height - 1; y >= 0; y--) {
+        for (int x = 0; x < width; x++) {
+            uint32_t pixel = data[y * width + x];
+            uint8_t bgra[4];
+            bgra[0] = (pixel >> 16) & 0xFF;  // B (from R)
+            bgra[1] = (pixel >> 8) & 0xFF;   // G
+            bgra[2] = pixel & 0xFF;          // R (from B)
+            bgra[3] = (pixel >> 24) & 0xFF;  // A
+            
+            file.write(reinterpret_cast<const char*>(bgra), 4);
+        }
+    }
+    
+    file.close();
+    spdlog::info("Gradient texture saved successfully to {}", filename);
+    return true;
 }
 
 // This function can be called from main.cpp to generate test textures

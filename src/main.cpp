@@ -125,6 +125,9 @@ int main(int argc, char* argv[]) {
                     else if (mode == "shaded") {
                         renderMode = RenderMode::TEXTURED_SHADED;
                     }
+                    else if (mode == "colorful") {
+                        renderMode = RenderMode::COLORFUL;
+                    }
                     else {
                         std::cerr << "Unknown rendering mode: " << mode << std::endl;
                         printUsage(argv[0]);

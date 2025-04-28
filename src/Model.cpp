@@ -97,6 +97,31 @@ bool Model::loadFromOBJ(const std::string& filename) {
 }
 
 void Model::setTexture(const std::string& texturePath) {
-    spdlog::info("Setting texture: {}", texturePath);
-    texture = std::make_shared<Texture>(texturePath);
+    try {
+        spdlog::info("Loading texture from {}", texturePath);
+        texture = std::make_shared<Texture>(texturePath);
+        
+        // Basic validation of texture coordinates
+        if (textureCoords.empty() && !faces.empty()) {
+            spdlog::warn("Model has faces but no texture coordinates. Texture mapping may not work correctly.");
+        }
+        
+        // Check if any face has texture indices
+        bool hasTextureIndices = false;
+        for (const auto& face : faces) {
+            if (!face.textureIndices.empty()) {
+                hasTextureIndices = true;
+                break;
+            }
+        }
+        
+        if (!hasTextureIndices) {
+            spdlog::warn("Model has no texture indices in faces. Texture mapping may not work correctly.");
+        }
+        
+        spdlog::info("Texture loaded successfully: {}x{}", texture->getWidth(), texture->getHeight());
+    } catch (const std::exception& e) {
+        spdlog::error("Failed to load texture: {}", e.what());
+        throw;
+    }
 } 

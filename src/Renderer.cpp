@@ -1,45 +1,45 @@
 #include "Renderer.h"
+#include "datatypes.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <random>
 
 // Define M_PI if not available (Windows MSVC doesn't define it by default)
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-Renderer::Renderer(int width, int height) : width(width), height(height), renderMode(RenderMode::WIREFRAME) {
+Renderer::Renderer(int width, int height)
+    : width(width), height(height), renderMode(RenderMode::WIREFRAME)
+{
     spdlog::info("Initializing Renderer with width={}, height={}", width, height);
-    
     frameBuffer.resize(width * height, 0);
     zBuffer.resize(width * height, std::numeric_limits<float>::infinity());
-    
-    // Initialize camera
-    cameraPosition = Eigen::Vector3f(0, 0, 5);
-    cameraTarget = Eigen::Vector3f(0, 0, 0);
-    cameraUp = Eigen::Vector3f(0, 1, 0);
-    
-    // Initialize matrices
-    modelMatrix = Eigen::Matrix4f::Identity();
-    viewMatrix = Eigen::Matrix4f::Identity();
+
+    // Default camera setup
+    cameraPosition = Eigen::Vector3f(2.0f, 0.5f, 3.0f);
+    cameraTarget   = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
+    cameraUp       = Eigen::Vector3f(0.0f, 1.0f, 0.0f);
+    updateViewMatrix();
+
+    // Model and projection matrices
+    modelMatrix      = Eigen::Matrix4f::Identity();
     projectionMatrix = Eigen::Matrix4f::Identity();
-    
-    // Set up perspective projection
-    float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-    float fov = 45.0f * M_PI / 180.0f; // 45 degrees in radians
-    float nearPlane = 0.1f;
-    float farPlane = 100.0f;
-    
+    float aspect     = float(width) / float(height);
+    float fov        = 45.0f * M_PI / 180.0f;
+    float nearPlane  = 0.1f;
+    float farPlane   = 100.0f;
     float tanHalfFov = std::tan(fov / 2.0f);
-    
-    projectionMatrix(0, 0) = 1.0f / (aspectRatio * tanHalfFov);
-    projectionMatrix(1, 1) = 1.0f / tanHalfFov;
-    projectionMatrix(2, 2) = -(farPlane + nearPlane) / (farPlane - nearPlane);
-    projectionMatrix(2, 3) = -2.0f * farPlane * nearPlane / (farPlane - nearPlane);
-    projectionMatrix(3, 2) = -1.0f;
-    projectionMatrix(3, 3) = 0.0f;
-    
+
+    projectionMatrix(0,0) = 1.0f / (aspect * tanHalfFov);
+    projectionMatrix(1,1) = 1.0f /            tanHalfFov;
+    projectionMatrix(2,2) = -(farPlane + nearPlane) / (farPlane - nearPlane);
+    projectionMatrix(2,3) = -2.0f * farPlane * nearPlane / (farPlane - nearPlane);
+    projectionMatrix(3,2) = -1.0f;
+    projectionMatrix(3,3) =  0.0f;
+
     spdlog::info("Renderer initialized successfully");
 }
 
@@ -54,24 +54,23 @@ void Renderer::setCameraTarget(const Eigen::Vector3f& target) {
 }
 
 void Renderer::updateViewMatrix() {
-    // Calculate camera basis vectors
+    // Compute camera basis
     Eigen::Vector3f forward = (cameraTarget - cameraPosition).normalized();
-    Eigen::Vector3f right = forward.cross(cameraUp).normalized();
-    Eigen::Vector3f up = right.cross(forward).normalized();
-    
+    Eigen::Vector3f right   = forward.cross(cameraUp).normalized();
+    Eigen::Vector3f up      = right.cross(forward).normalized();
+
     // Build view matrix
     viewMatrix = Eigen::Matrix4f::Identity();
-    viewMatrix.block<1, 3>(0, 0) = right;
-    viewMatrix.block<1, 3>(1, 0) = up;
-    viewMatrix.block<1, 3>(2, 0) = -forward;
-    
-    Eigen::Vector3f translation = Eigen::Vector3f(
+    viewMatrix.block<1,3>(0,0) = right;
+    viewMatrix.block<1,3>(1,0) = up;
+    viewMatrix.block<1,3>(2,0) = -forward;
+
+    Eigen::Vector3f trans(
         -right.dot(cameraPosition),
         -up.dot(cameraPosition),
-        forward.dot(cameraPosition)
+         forward.dot(cameraPosition)
     );
-    
-    viewMatrix.block<3, 1>(0, 3) = translation;
+    viewMatrix.block<3,1>(0,3) = trans;
 }
 
 void Renderer::setRenderMode(RenderMode mode) {
@@ -79,397 +78,118 @@ void Renderer::setRenderMode(RenderMode mode) {
 }
 
 void Renderer::render(const Model& model) {
-    spdlog::info("Rendering model with {} mode", static_cast<int>(renderMode));
-    
+    spdlog::info("Rendering model with mode {}", static_cast<int>(renderMode));
     switch (renderMode) {
-        case RenderMode::WIREFRAME:
-            renderWireframe(model);
-            break;
-        case RenderMode::SOLID:
-            renderSolid(model);
-            break;
-        case RenderMode::TEXTURED:
-            renderTextured(model);
-            break;
-        case RenderMode::TEXTURED_SHADED:
-            renderTexturedShaded(model);
-            break;
+        case RenderMode::WIREFRAME:      renderWireframe(model);        break;
+        case RenderMode::SOLID:          renderSolid(model);            break;
+        case RenderMode::TEXTURED:       renderTextured(model);         break;
+        case RenderMode::TEXTURED_SHADED: renderTexturedShaded(model);   break;
+        case RenderMode::COLORFUL:       renderColorful(model);         break;
     }
 }
 
 void Renderer::renderWireframe(const Model& model) {
-    const auto& vertices = model.getVertices();
-    const auto& faces = model.getFaces();
-    
-    // Model-view-projection matrix
+    const auto& V = model.getVertices();
+    const auto& F = model.getFaces();
     Eigen::Matrix4f mvp = projectionMatrix * viewMatrix * modelMatrix;
+    std::fill(zBuffer.begin(), zBuffer.end(), std::numeric_limits<float>::infinity());
+
+    for (const auto& face : F) {
+        if (face.vertexIndices.size() != 3) continue;
+        std::array<Eigen::Vector4f,3> proj;
+        std::array<Vertex,3> verts;
+        for (int i = 0; i < 3; ++i) {
+            auto v = V[face.vertexIndices[i]];
+            Eigen::Vector4f vh(v.x(), v.y(), v.z(), 1.0f);
+            proj[i] = mvp * vh;
+            proj[i] /= proj[i].w();
+            verts[i] = {proj[i].x(), proj[i].y(), proj[i].z(), 0, 0, 0, 0, 0};
+        }
+        drawLine(verts[0], verts[1], static_cast<uint32_t>(Color::RED));
+        drawLine(verts[1], verts[2], static_cast<uint32_t>(Color::RED));
+        drawLine(verts[2], verts[0], static_cast<uint32_t>(Color::RED));
+    }
+}
+
+static uint32_t generateRandomColor() {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<int> dist(0, 255);
+    uint8_t r = static_cast<uint8_t>(dist(gen));
+    uint8_t g = static_cast<uint8_t>(dist(gen));
+    uint8_t b = static_cast<uint8_t>(dist(gen));
+    return (0xFF << 24) | (r << 16) | (g << 8) | b;
+}
+
+static Eigen::Vector3f barycentricInt(const Vertex& v1, const Vertex& v2, const Vertex& v3, int px, int py) {
+    Eigen::Vector3f u(v3.x - v1.x, v2.x - v1.x, v1.x - px);
+    Eigen::Vector3f v(v3.y - v1.y, v2.y - v1.y, v1.y - py);
+    Eigen::Vector3f w = u.cross(v);
+    if (std::abs(w.z()) < 1) return Eigen::Vector3f(-1, 1, 1);
+    return Eigen::Vector3f(1.0f - (w.x() + w.y()) / w.z(), w.y() / w.z(), w.x() / w.z());
+}
+
+void Renderer::drawTriangle(const Vertex& v1, const Vertex& v2, const Vertex& v3, uint32_t color) {
+    // Find bounding box
+    int minX = std::min({int(v1.x), int(v2.x), int(v3.x)});
+    int minY = std::min({int(v1.y), int(v2.y), int(v3.y)});
+    int maxX = std::max({int(v1.x), int(v2.x), int(v3.x)});
+    int maxY = std::max({int(v1.y), int(v2.y), int(v3.y)});
     
-    // Draw each face as a wireframe
-    for (const auto& face : faces) {
-        const auto& vertexIndices = face.vertexIndices;
-        
-        // Draw edges of the face
-        for (size_t i = 0; i < vertexIndices.size(); ++i) {
-            size_t j = (i + 1) % vertexIndices.size(); // Next vertex (wrap around for the last one)
-            
-            // Get 3D vertices
-            Eigen::Vector3f v0 = vertices[vertexIndices[i]];
-            Eigen::Vector3f v1 = vertices[vertexIndices[j]];
-            
-            // Convert to homogeneous coordinates
-            Eigen::Vector4f v0h(v0.x(), v0.y(), v0.z(), 1.0f);
-            Eigen::Vector4f v1h(v1.x(), v1.y(), v1.z(), 1.0f);
-            
-            // Apply MVP transformation
-            Eigen::Vector4f p0 = mvp * v0h;
-            Eigen::Vector4f p1 = mvp * v1h;
-            
-            // Perspective division
-            p0 /= p0.w();
-            p1 /= p1.w();
-            
-            // Viewport transformation - FIXED: invert Y coordinate to fix upside-down rendering
-            int x0 = static_cast<int>((p0.x() + 1.0f) * 0.5f * width);
-            int y0 = static_cast<int>((p0.y() + 1.0f) * 0.5f * height); // Changed from (1.0f - p0.y())
-            int x1 = static_cast<int>((p1.x() + 1.0f) * 0.5f * width);
-            int y1 = static_cast<int>((p1.y() + 1.0f) * 0.5f * height); // Changed from (1.0f - p1.y())
-            
-            // Draw the line
-            drawLine(x0, y0, x1, y1, 0xFFFFFFFF); // White color
+    // Make sure we don't go outside the frame buffer
+    minX = std::max(0, minX);
+    minY = std::max(0, minY);
+    maxX = std::min(width-1, maxX);
+    maxY = std::min(height-1, maxY);
+    
+    // Loop through the bounding box
+    for (int px = minX; px <= maxX; px++) {
+        for (int py = minY; py <= maxY; py++) {
+            Eigen::Vector3f bc = barycentricInt(v1, v2, v3, px, py);
+            if (bc.x() < 0 || bc.y() < 0 || bc.z() < 0) continue;
+            setPixel(px, py, color);
         }
     }
 }
 
-void Renderer::renderSolid(const Model& model) {
-    const auto& vertices = model.getVertices();
-    const auto& faces = model.getFaces();
-    const auto& normals = model.getNormals();
-    
-    // Model-view-projection matrix
+void Renderer::renderColorful(const Model& model) {
+    const auto& V = model.getVertices();
+    const auto& F = model.getFaces();
+    std::fill(zBuffer.begin(), zBuffer.end(), std::numeric_limits<float>::infinity());
     Eigen::Matrix4f mvp = projectionMatrix * viewMatrix * modelMatrix;
-    
-    // Direction to light source (for simple diffuse lighting)
-    Eigen::Vector3f lightDir = (Eigen::Vector3f(1, 1, 1)).normalized();
-    
-    // Draw each face as a filled triangle
-    for (const auto& face : faces) {
-        const auto& vertexIndices = face.vertexIndices;
-        const auto& normalIndices = face.normalIndices;
-        
-        // Skip faces that are not triangles
-        if (vertexIndices.size() != 3) {
-            continue;
+    for (const auto& face : F) {
+        if (face.vertexIndices.size() != 3) continue;
+        Vertex v1, v2, v3;
+        for (int j = 0; j < 3; ++j) {
+            auto v = V[face.vertexIndices[j]];
+            Eigen::Vector4f vh(v.x(), v.y(), v.z(), 1.0f);
+            Eigen::Vector4f ph = mvp * vh;
+            ph /= ph.w();
+            float sx = (ph.x() + 1) * 0.5f * width;
+            float sy = (ph.y() + 1) * 0.5f * height;
+            float sz = ph.z();
+            if (j == 0) { v1.x = sx; v1.y = sy; v1.z = sz; }
+            if (j == 1) { v2.x = sx; v2.y = sy; v2.z = sz; }
+            if (j == 2) { v3.x = sx; v3.y = sy; v3.z = sz; }
         }
-        
-        // Get vertices
-        Eigen::Vector3f v0 = vertices[vertexIndices[0]];
-        Eigen::Vector3f v1 = vertices[vertexIndices[1]];
-        Eigen::Vector3f v2 = vertices[vertexIndices[2]];
-        
-        // Convert to homogeneous coordinates
-        Eigen::Vector4f v0h(v0.x(), v0.y(), v0.z(), 1.0f);
-        Eigen::Vector4f v1h(v1.x(), v1.y(), v1.z(), 1.0f);
-        Eigen::Vector4f v2h(v2.x(), v2.y(), v2.z(), 1.0f);
-        
-        // Apply MVP transformation
-        Eigen::Vector4f p0 = mvp * v0h;
-        Eigen::Vector4f p1 = mvp * v1h;
-        Eigen::Vector4f p2 = mvp * v2h;
-        
-        // Perspective division
-        p0 /= p0.w();
-        p1 /= p1.w();
-        p2 /= p2.w();
-        
-        // Viewport transformation - FIXED: invert Y coordinate to fix upside-down rendering
-        int x0 = static_cast<int>((p0.x() + 1.0f) * 0.5f * width);
-        int y0 = static_cast<int>((p0.y() + 1.0f) * 0.5f * height); // Changed from (1.0f - p0.y())
-        int x1 = static_cast<int>((p1.x() + 1.0f) * 0.5f * width);
-        int y1 = static_cast<int>((p1.y() + 1.0f) * 0.5f * height); // Changed from (1.0f - p1.y())
-        int x2 = static_cast<int>((p2.x() + 1.0f) * 0.5f * width);
-        int y2 = static_cast<int>((p2.y() + 1.0f) * 0.5f * height); // Changed from (1.0f - p2.y())
-        
-        // Calculate face normal for shading if no vertex normals are provided
-        Eigen::Vector3f normal;
-        if (normalIndices.empty()) {
-            Eigen::Vector3f edge1 = v1 - v0;
-            Eigen::Vector3f edge2 = v2 - v0;
-            normal = edge1.cross(edge2).normalized();
-        } else {
-            // Use average of vertex normals for simple shading
-            normal = (normals[normalIndices[0]] + 
-                     normals[normalIndices[1]] + 
-                     normals[normalIndices[2]]).normalized();
-        }
-        
-        // Simple diffuse lighting
-        float intensity = std::max(0.2f, normal.dot(lightDir));
-        
-        // Create a diffuse shaded color (white base color)
-        uint8_t r = static_cast<uint8_t>(255 * intensity);
-        uint8_t g = static_cast<uint8_t>(255 * intensity);
-        uint8_t b = static_cast<uint8_t>(255 * intensity);
-        uint32_t color = (0xFF << 24) | (r << 16) | (g << 8) | b;
-        
-        // Draw the triangle
-        drawTriangle(x0, y0, x1, y1, x2, y2, color);
+        // Backface culling using signed area in screen space
+        float signed_area = (v2.x - v1.x) * (v3.y - v1.y) - (v3.x - v1.x) * (v2.y - v1.y);
+        if (signed_area <= 0) continue;
+        uint32_t color = generateRandomColor();
+        drawTriangle(v1, v2, v3, color);
     }
 }
 
 void Renderer::renderTextured(const Model& model) {
-    const auto& vertices = model.getVertices();
-    const auto& faces = model.getFaces();
-    const auto& textureCoords = model.getTextureCoords();
-    const auto& normals = model.getNormals();
-    std::shared_ptr<Texture> texture = model.getTexture();
-    
-    // Check if texture is available
-    if (!texture) {
-        spdlog::warn("No texture available, falling back to solid rendering");
-        renderSolid(model);
-        return;
-    }
-    
-    // Model-view-projection matrix
-    Eigen::Matrix4f mvp = projectionMatrix * viewMatrix * modelMatrix;
-    
-    // Direction to light source (for simple diffuse lighting)
-    Eigen::Vector3f lightDir = (Eigen::Vector3f(1, 1, 1)).normalized();
-    
-    // Draw each face as a textured triangle
-    for (const auto& face : faces) {
-        const auto& vertexIndices = face.vertexIndices;
-        const auto& textureIndices = face.textureIndices;
-        const auto& normalIndices = face.normalIndices;
-        
-        // Skip faces that are not triangles
-        if (vertexIndices.size() != 3 || textureIndices.size() != 3) {
-            continue;
-        }
-        
-        // Get vertices
-        Eigen::Vector3f v0 = vertices[vertexIndices[0]];
-        Eigen::Vector3f v1 = vertices[vertexIndices[1]];
-        Eigen::Vector3f v2 = vertices[vertexIndices[2]];
-        
-        // Get texture coordinates
-        Eigen::Vector2f t0 = textureCoords[textureIndices[0]];
-        Eigen::Vector2f t1 = textureCoords[textureIndices[1]];
-        Eigen::Vector2f t2 = textureCoords[textureIndices[2]];
-        
-        // Convert to homogeneous coordinates
-        Eigen::Vector4f v0h(v0.x(), v0.y(), v0.z(), 1.0f);
-        Eigen::Vector4f v1h(v1.x(), v1.y(), v1.z(), 1.0f);
-        Eigen::Vector4f v2h(v2.x(), v2.y(), v2.z(), 1.0f);
-        
-        // Apply MVP transformation
-        Eigen::Vector4f p0 = mvp * v0h;
-        Eigen::Vector4f p1 = mvp * v1h;
-        Eigen::Vector4f p2 = mvp * v2h;
-        
-        // Store z-values for depth testing
-        float z0 = p0.z() / p0.w();
-        float z1 = p1.z() / p1.w();
-        float z2 = p2.z() / p2.w();
-        
-        // Perspective division
-        p0 /= p0.w();
-        p1 /= p1.w();
-        p2 /= p2.w();
-        
-        // Viewport transformation - FIXED: invert Y coordinate to fix upside-down rendering
-        int x0 = static_cast<int>((p0.x() + 1.0f) * 0.5f * width);
-        int y0 = static_cast<int>((p0.y() + 1.0f) * 0.5f * height); // Changed from (1.0f - p0.y())
-        int x1 = static_cast<int>((p1.x() + 1.0f) * 0.5f * width);
-        int y1 = static_cast<int>((p1.y() + 1.0f) * 0.5f * height); // Changed from (1.0f - p1.y())
-        int x2 = static_cast<int>((p2.x() + 1.0f) * 0.5f * width);
-        int y2 = static_cast<int>((p2.y() + 1.0f) * 0.5f * height); // Changed from (1.0f - p2.y())
-        
-        // Calculate face normal for simple lighting
-        Eigen::Vector3f normal;
-        if (normalIndices.empty()) {
-            Eigen::Vector3f edge1 = v1 - v0;
-            Eigen::Vector3f edge2 = v2 - v0;
-            normal = edge1.cross(edge2).normalized();
-        } else {
-            // Use average of vertex normals
-            normal = (normals[normalIndices[0]] + 
-                    normals[normalIndices[1]] + 
-                    normals[normalIndices[2]]).normalized();
-        }
-        
-        // Simple diffuse lighting intensity
-        float intensity = std::max(0.2f, normal.dot(lightDir));
-        
-        // Draw the textured triangle
-        renderTexturedTriangle(
-            x0, y0, z0, t0.x(), t0.y(),
-            x1, y1, z1, t1.x(), t1.y(),
-            x2, y2, z2, t2.x(), t2.y(),
-            intensity, *texture);
-    }
+    // TODO: Implement textured rendering
 }
 
 void Renderer::renderTexturedShaded(const Model& model) {
-    // For now, this is identical to renderTextured
-    renderTextured(model);
+    // TODO: Implement textured shaded rendering
 }
 
-void Renderer::renderTexturedTriangle(
-    int x0, int y0, float z0, float u0, float v0,
-    int x1, int y1, float z1, float u1, float v1,
-    int x2, int y2, float z2, float u2, float v2,
-    float lightIntensity, const Texture& texture) {
-    
-    // Sort vertices by y-coordinate
-    if (y0 > y1) {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-        std::swap(z0, z1);
-        std::swap(u0, u1);
-        std::swap(v0, v1);
-    }
-    if (y0 > y2) {
-        std::swap(x0, x2);
-        std::swap(y0, y2);
-        std::swap(z0, z2);
-        std::swap(u0, u2);
-        std::swap(v0, v2);
-    }
-    if (y1 > y2) {
-        std::swap(x1, x2);
-        std::swap(y1, y2);
-        std::swap(z1, z2);
-        std::swap(u1, u2);
-        std::swap(v1, v2);
-    }
-    
-    // Calculate slopes and interpolation values
-    float dy1 = y1 - y0;
-    float dy2 = y2 - y0;
-    float dy3 = y2 - y1;
-    
-    // Handle special cases for vertical edges
-    float dx1 = (dy1 != 0) ? (x1 - x0) / dy1 : 0;
-    float dx2 = (dy2 != 0) ? (x2 - x0) / dy2 : 0;
-    float dx3 = (dy3 != 0) ? (x2 - x1) / dy3 : 0;
-    
-    // Z interpolation
-    float dz1 = (dy1 != 0) ? (z1 - z0) / dy1 : 0;
-    float dz2 = (dy2 != 0) ? (z2 - z0) / dy2 : 0;
-    float dz3 = (dy3 != 0) ? (z2 - z1) / dy3 : 0;
-    
-    // Texture coordinate interpolation
-    float du1 = (dy1 != 0) ? (u1 - u0) / dy1 : 0;
-    float du2 = (dy2 != 0) ? (u2 - u0) / dy2 : 0;
-    float du3 = (dy3 != 0) ? (u2 - u1) / dy3 : 0;
-    
-    float dv1 = (dy1 != 0) ? (v1 - v0) / dy1 : 0;
-    float dv2 = (dy2 != 0) ? (v2 - v0) / dy2 : 0;
-    float dv3 = (dy3 != 0) ? (v2 - v1) / dy3 : 0;
-    
-    // Draw the upper part of the triangle
-    if (dy1 > 0) {
-        drawTexturedScanlines(
-            y0, y1,
-            x0, dx1, x0, dx2,
-            z0, dz1, z0, dz2,
-            u0, du1, u0, du2,
-            v0, dv1, v0, dv2,
-            lightIntensity, texture);
-    }
-    
-    // Draw the lower part of the triangle
-    if (dy3 > 0) {
-        drawTexturedScanlines(
-            y1, y2,
-            x1, dx3, x0 + dx2 * dy1, dx2,
-            z1, dz3, z0 + dz2 * dy1, dz2,
-            u1, du3, u0 + du2 * dy1, du2,
-            v1, dv3, v0 + dv2 * dy1, dv2,
-            lightIntensity, texture);
-    }
-}
-
-void Renderer::drawTexturedScanlines(
-    int yStart, int yEnd,
-    float xLeft, float dxLeft, float xRight, float dxRight,
-    float zLeft, float dzLeft, float zRight, float dzRight,
-    float uLeft, float duLeft, float uRight, float duRight,
-    float vLeft, float dvLeft, float vRight, float dvRight,
-    float lightIntensity, const Texture& texture) {
-    
-    for (int y = yStart; y < yEnd; y++) {
-        float xL = xLeft;
-        float xR = xRight;
-        float zL = zLeft;
-        float zR = zRight;
-        float uL = uLeft;
-        float vL = vLeft;
-        float uR = uRight;
-        float vR = vRight;
-        
-        // Swap if needed to ensure left to right
-        if (xL > xR) {
-            std::swap(xL, xR);
-            std::swap(zL, zR);
-            std::swap(uL, uR);
-            std::swap(vL, vR);
-        }
-        
-        // Get starting and ending x-coordinates
-        int xStart = static_cast<int>(std::ceil(xL));
-        int xEnd = static_cast<int>(std::ceil(xR));
-        
-        // Calculate interpolation steps along the scanline
-        float dx = xR - xL;
-        float dz = (dx != 0) ? (zR - zL) / dx : 0;
-        float du = (dx != 0) ? (uR - uL) / dx : 0;
-        float dv = (dx != 0) ? (vR - vL) / dx : 0;
-        
-        // Adjust for the first pixel
-        float xOffset = xStart - xL;
-        float z = zL + dz * xOffset;
-        float u = uL + du * xOffset;
-        float v = vL + dv * xOffset;
-        
-        // Draw the scanline
-        for (int x = xStart; x < xEnd; x++) {
-            // Check if this pixel is in front (using z-buffer)
-            int index = y * width + x;
-            if (x >= 0 && x < width && y >= 0 && y < height && z < zBuffer[index]) {
-                // Get texel color
-                uint32_t color = texture.getColorAt(u, v);
-                
-                // Apply lighting
-                uint8_t r = static_cast<uint8_t>(((color >> 16) & 0xFF) * lightIntensity);
-                uint8_t g = static_cast<uint8_t>(((color >> 8) & 0xFF) * lightIntensity);
-                uint8_t b = static_cast<uint8_t>((color & 0xFF) * lightIntensity);
-                uint8_t a = static_cast<uint8_t>((color >> 24) & 0xFF);
-                
-                uint32_t shadedColor = (a << 24) | (r << 16) | (g << 8) | b;
-                
-                // Update frame buffer and z-buffer
-                frameBuffer[index] = shadedColor;
-                zBuffer[index] = z;
-            }
-            
-            // Increment for the next pixel
-            z += dz;
-            u += du;
-            v += dv;
-        }
-        
-        // Update for the next scanline
-        xLeft += dxLeft;
-        xRight += dxRight;
-        zLeft += dzLeft;
-        zRight += dzRight;
-        uLeft += duLeft;
-        uRight += duRight;
-        vLeft += dvLeft;
-        vRight += dvRight;
-    }
+void Renderer::renderSolid(const Model& model) {
+    // Not implemented yet
 }
 
 void Renderer::clearBuffer(uint32_t color) {
@@ -478,130 +198,33 @@ void Renderer::clearBuffer(uint32_t color) {
 }
 
 bool Renderer::saveImage(const std::string& filename) const {
-    // Create a texture with the frame buffer data
-    Texture texture;
-    
-    // Set the width, height, and data
-    texture.setWidth(width);
-    texture.setHeight(height);
-    texture.setData(frameBuffer);
-    
-    // Save the texture to a TGA file
-    return texture.saveToTGA(filename);
+    Texture tex;
+    tex.setWidth(width);
+    tex.setHeight(height);
+    tex.setData(frameBuffer);
+    return tex.saveToTGA(filename);
 }
 
-void Renderer::drawLine(int x0, int y0, int x1, int y1, uint32_t color) {
-    // Bresenham's line algorithm
-    bool steep = false;
-    
-    // If the line is steep, transpose the coordinates
-    if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
-        std::swap(x0, y0);
-        std::swap(x1, y1);
-        steep = true;
-    }
-    
-    // Make sure x0 <= x1
-    if (x0 > x1) {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-    }
-    
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-    int derror2 = std::abs(dy) * 2;
-    int error2 = 0;
-    int y = y0;
-    
-    for (int x = x0; x <= x1; x++) {
-        if (steep) {
-            // If the line is steep, de-transpose
-            setPixel(y, x, color);
-        } else {
-            setPixel(x, y, color);
-        }
-        
-        error2 += derror2;
-        if (error2 > dx) {
-            y += (y1 > y0 ? 1 : -1);
-            error2 -= dx * 2;
-        }
-    }
-}
-
-void Renderer::drawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
-    // Sort vertices by y-coordinate
-    if (y0 > y1) {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-    }
-    if (y0 > y2) {
-        std::swap(x0, x2);
-        std::swap(y0, y2);
-    }
-    if (y1 > y2) {
-        std::swap(x1, x2);
-        std::swap(y1, y2);
-    }
-    
-    // Compute slopes for the three edges
-    float dx1 = (x1 - x0) / static_cast<float>(y1 - y0);
-    float dx2 = (x2 - x0) / static_cast<float>(y2 - y0);
-    float dx3 = (x2 - x1) / static_cast<float>(y2 - y1);
-    
-    // Handle special case where y1 == y0
-    if (y1 == y0) {
-        dx1 = 0;
-    }
-    
-    // Handle special case where y2 == y0
-    if (y2 == y0) {
-        dx2 = 0;
-    }
-    
-    // Handle special case where y2 == y1
-    if (y2 == y1) {
-        dx3 = 0;
-    }
-    
-    float x_left, x_right;
-    
-    // Draw the upper part of the triangle
-    if (y1 > y0) {
-        for (int y = y0; y < y1; y++) {
-            x_left = x0 + (y - y0) * dx1;
-            x_right = x0 + (y - y0) * dx2;
-            
-            if (x_left > x_right) {
-                std::swap(x_left, x_right);
-            }
-            
-            for (int x = static_cast<int>(x_left); x <= static_cast<int>(x_right); x++) {
-                setPixel(x, y, color);
-            }
-        }
-    }
-    
-    // Draw the lower part of the triangle
-    if (y2 > y1) {
-        for (int y = y1; y <= y2; y++) {
-            x_left = x1 + (y - y1) * dx3;
-            x_right = x0 + (y - y0) * dx2;
-            
-            if (x_left > x_right) {
-                std::swap(x_left, x_right);
-            }
-            
-            for (int x = static_cast<int>(x_left); x <= static_cast<int>(x_right); x++) {
-                setPixel(x, y, color);
-            }
-        }
+void Renderer::drawLine(const Vertex& v0, const Vertex& v1, uint32_t color) {
+    int x0 = static_cast<int>((v0.x + 1) * 0.5f * width);
+    int y0 = static_cast<int>((v0.y + 1) * 0.5f * height);
+    int x1 = static_cast<int>((v1.x + 1) * 0.5f * width);
+    int y1 = static_cast<int>((v1.y + 1) * 0.5f * height);
+    int dx  = std::abs(x1 - x0);
+    int dy  = std::abs(y1 - y0);
+    int sx  = (x0 < x1 ? 1 : -1);
+    int sy  = (y0 < y1 ? 1 : -1);
+    int err = dx - dy;
+    while (true) {
+        setPixel(x0, y0, color);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = err*2;
+        if (e2 > -dy) { err -= dy; x0 += sx; }
+        if (e2 <  dx) { err += dx; y0 += sy; }
     }
 }
 
 void Renderer::setPixel(int x, int y, uint32_t color) {
-    // Check if the pixel is within bounds
-    if (x >= 0 && x < width && y >= 0 && y < height) {
-        frameBuffer[y * width + x] = color;
-    }
-} 
+    if (x>=0 && x<width && y>=0 && y<height) 
+        frameBuffer[y*width + x] = color;
+}

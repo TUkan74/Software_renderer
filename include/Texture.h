@@ -83,6 +83,12 @@ public:
      */
     void setData(const std::vector<uint32_t>& pixelData) { data = pixelData; }
 
+    bool loadRLEData(std::ifstream& file,
+                 int width, int height,
+                 int bytespp,
+                 uint8_t imageDescriptor);
+
+
 private:
     int width = 0;                  // Width of the texture in pixels
     int height = 0;                 // Height of the texture in pixels
