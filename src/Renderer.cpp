@@ -189,7 +189,89 @@ void Renderer::renderTexturedShaded(const Model& model) {
 }
 
 void Renderer::renderSolid(const Model& model) {
-    // Not implemented yet
+    const auto& vertices = model.getVertices();
+    const auto& faces = model.getFaces();
+    const auto& normals = model.getNormals();
+    
+    // Model-view-projection matrix
+    Eigen::Matrix4f mvp = projectionMatrix * viewMatrix * modelMatrix;
+    
+    // Direction to light source (for simple diffuse lighting)
+    Eigen::Vector3f lightDir = (Eigen::Vector3f(1, 1, 1)).normalized();
+    
+    // Draw each face as a filled triangle
+    for (const auto& face : faces) {
+        const auto& vertexIndices = face.vertexIndices;
+        const auto& normalIndices = face.normalIndices;
+        
+        // Skip faces that are not triangles
+        if (vertexIndices.size() != 3) {
+            continue;
+        }
+        
+        // Get vertices
+        Eigen::Vector3f v0 = vertices[vertexIndices[0]];
+        Eigen::Vector3f v1 = vertices[vertexIndices[1]];
+        Eigen::Vector3f v2 = vertices[vertexIndices[2]];
+        
+        // Convert to homogeneous coordinates
+        Eigen::Vector4f v0h(v0.x(), v0.y(), v0.z(), 1.0f);
+        Eigen::Vector4f v1h(v1.x(), v1.y(), v1.z(), 1.0f);
+        Eigen::Vector4f v2h(v2.x(), v2.y(), v2.z(), 1.0f);
+        
+        // Apply MVP transformation
+        Eigen::Vector4f p0 = mvp * v0h;
+        Eigen::Vector4f p1 = mvp * v1h;
+        Eigen::Vector4f p2 = mvp * v2h;
+        
+        // Perspective division
+        p0 /= p0.w();
+        p1 /= p1.w();
+        p2 /= p2.w();
+        
+        // Viewport transformation
+        float x0 = (p0.x() + 1.0f) * 0.5f * width;
+        float y0 = (p0.y() + 1.0f) * 0.5f * height;
+        float z0 = p0.z();
+        float x1 = (p1.x() + 1.0f) * 0.5f * width;
+        float y1 = (p1.y() + 1.0f) * 0.5f * height;
+        float z1 = p1.z();
+        float x2 = (p2.x() + 1.0f) * 0.5f * width;
+        float y2 = (p2.y() + 1.0f) * 0.5f * height;
+        float z2 = p2.z();
+        
+        // Calculate face normal for shading if no vertex normals are provided
+        Eigen::Vector3f normal;
+        if (normalIndices.empty()) {
+            Eigen::Vector3f edge1 = v1 - v0;
+            Eigen::Vector3f edge2 = v2 - v0;
+            normal = edge1.cross(edge2).normalized();
+        } else {
+            // Use average of vertex normals for simple shading
+            normal = (normals[normalIndices[0]] + 
+                     normals[normalIndices[1]] + 
+                     normals[normalIndices[2]]).normalized();
+        }
+        
+        // Simple diffuse lighting
+        float intensity = std::max(0.2f, normal.dot(lightDir));
+        
+        // Create a diffuse shaded color (white base color)
+        uint8_t r = static_cast<uint8_t>(255 * intensity);
+        uint8_t g = static_cast<uint8_t>(255 * intensity);
+        uint8_t b = static_cast<uint8_t>(255 * intensity);
+        uint32_t color = (0xFF << 24) | (r << 16) | (g << 8) | b;
+        
+        // Create Vertex objects for triangle rendering
+        Vertex vert0, vert1, vert2;
+        
+        vert0.x = x0; vert0.y = y0; vert0.z = z0;
+        vert1.x = x1; vert1.y = y1; vert1.z = z1;
+        vert2.x = x2; vert2.y = y2; vert2.z = z2;
+        
+        // Draw the triangle
+        drawTriangle(vert0, vert1, vert2, color);
+    }
 }
 
 void Renderer::clearBuffer(uint32_t color) {
