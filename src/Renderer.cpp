@@ -94,6 +94,9 @@ void Renderer::render(const Model& model) {
         case RenderMode::TEXTURED_SHADED:
             renderTexturedShaded(model);
             break;
+        case RenderMode::COLORFUL:
+            renderColorful(model);
+            break;
     }
 }
 
@@ -308,6 +311,85 @@ void Renderer::renderTextured(const Model& model) {
             x2, y2, z2, t2.x(), 1.0f - t2.y(), // Flip V coordinate
             intensity, *texture);
     }
+}
+
+void Renderer::renderColorful(const Model& model) {
+    const auto& vertices = model.getVertices();
+    const auto& faces = model.getFaces();
+    
+    // Clear z-buffer
+    std::fill(zBuffer.begin(), zBuffer.end(), std::numeric_limits<float>::infinity());
+    
+    // Model-view-projection matrix
+    Eigen::Matrix4f mvp = projectionMatrix * viewMatrix * modelMatrix;
+    
+    // Draw each triangular face with a random color
+    for (const auto& face : faces) {
+        // Skip faces that are not triangles
+        if (face.vertexIndices.size() != 3) {
+            continue;
+        }
+        
+        // Process vertices
+        Eigen::Vector3f v0 = vertices[face.vertexIndices[0]];
+        Eigen::Vector3f v1 = vertices[face.vertexIndices[1]];
+        Eigen::Vector3f v2 = vertices[face.vertexIndices[2]];
+        
+        // Convert to homogeneous coordinates
+        Eigen::Vector4f v0h(v0.x(), v0.y(), v0.z(), 1.0f);
+        Eigen::Vector4f v1h(v1.x(), v1.y(), v1.z(), 1.0f);
+        Eigen::Vector4f v2h(v2.x(), v2.y(), v2.z(), 1.0f);
+        
+        // Apply MVP transformation
+        Eigen::Vector4f p0 = mvp * v0h;
+        Eigen::Vector4f p1 = mvp * v1h;
+        Eigen::Vector4f p2 = mvp * v2h;
+        
+        // Store z-values for depth testing
+        float z0 = p0.z() / p0.w();
+        float z1 = p1.z() / p1.w();
+        float z2 = p2.z() / p2.w();
+        
+        // Perspective division
+        p0 /= p0.w();
+        p1 /= p1.w();
+        p2 /= p2.w();
+        
+        // Viewport transformation
+        float x0 = (p0.x() + 1.0f) * 0.5f * width;
+        float y0 = (p0.y() + 1.0f) * 0.5f * height;
+        float x1 = (p1.x() + 1.0f) * 0.5f * width;
+        float y1 = (p1.y() + 1.0f) * 0.5f * height;
+        float x2 = (p2.x() + 1.0f) * 0.5f * width;
+        float y2 = (p2.y() + 1.0f) * 0.5f * height;
+        
+        // Create vertices with z-buffer information
+        Vertex vert0 = {x0, y0, z0};
+        Vertex vert1 = {x1, y1, z1};
+        Vertex vert2 = {x2, y2, z2};
+        
+        // Backface culling using signed area in screen space
+        float signed_area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+        if (signed_area <= 0) {
+            continue;
+        }
+        
+        // Generate a random color for this triangle
+        uint32_t color = generateRandomColor();
+        
+        // Draw the triangle with z-buffer support
+        drawTriangle(vert0, vert1, vert2, color);
+    }
+}
+
+uint32_t Renderer::generateRandomColor() {
+    // Generate random RGB values
+    uint8_t r = static_cast<uint8_t>(rand() % 200 + 55); // 55-255 for brighter colors
+    uint8_t g = static_cast<uint8_t>(rand() % 200 + 55);
+    uint8_t b = static_cast<uint8_t>(rand() % 200 + 55);
+    
+    // Combine into a single color value (with full alpha)
+    return (0xFF << 24) | (r << 16) | (g << 8) | b;
 }
 
 void Renderer::renderTexturedShaded(const Model& model) {
@@ -914,5 +996,100 @@ void Renderer::setPixel(int x, int y, uint32_t color) {
     // Check if the pixel is within bounds
     if (x >= 0 && x < width && y >= 0 && y < height) {
         frameBuffer[y * width + x] = color;
+    }
+}
+
+void Renderer::drawTriangle(Vertex v0, Vertex v1, Vertex v2, uint32_t color) {
+    // Sort vertices by y-coordinate
+    if (v0.y > v1.y) { std::swap(v0, v1); }
+    if (v0.y > v2.y) { std::swap(v0, v2); }
+    if (v1.y > v2.y) { std::swap(v1, v2); }
+    
+    // Compute slopes for the three edges
+    int y0 = static_cast<int>(v0.y);
+    int y1 = static_cast<int>(v1.y);
+    int y2 = static_cast<int>(v2.y);
+    
+    float dy1 = v1.y - v0.y;
+    float dy2 = v2.y - v0.y;
+    float dy3 = v2.y - v1.y;
+    
+    // Handle special cases for vertical edges
+    float dx1 = (dy1 != 0) ? (v1.x - v0.x) / dy1 : 0;
+    float dx2 = (dy2 != 0) ? (v2.x - v0.x) / dy2 : 0;
+    float dx3 = (dy3 != 0) ? (v2.x - v1.x) / dy3 : 0;
+    
+    // Z interpolation
+    float dz1 = (dy1 != 0) ? (v1.z - v0.z) / dy1 : 0;
+    float dz2 = (dy2 != 0) ? (v2.z - v0.z) / dy2 : 0;
+    float dz3 = (dy3 != 0) ? (v2.z - v1.z) / dy3 : 0;
+    
+    // Draw the upper part of the triangle
+    if (dy1 > 0) {
+        drawScanline(
+            y0, y1,
+            v0.x, dx1, v0.x, dx2,
+            v0.z, dz1, v0.z, dz2,
+            color);
+    }
+    
+    // Draw the lower part of the triangle
+    if (dy3 > 0) {
+        drawScanline(
+            y1, y2,
+            v1.x, dx3, v0.x + dx2 * dy1, dx2,
+            v1.z, dz3, v0.z + dz2 * dy1, dz2,
+            color);
+    }
+}
+
+void Renderer::drawScanline(
+    int yStart, int yEnd,
+    float xLeft, float dxLeft, float xRight, float dxRight,
+    float zLeft, float dzLeft, float zRight, float dzRight,
+    uint32_t color) {
+    
+    for (int y = yStart; y < yEnd; y++) {
+        float xL = xLeft;
+        float xR = xRight;
+        float zL = zLeft;
+        float zR = zRight;
+        
+        // Swap if needed to ensure left to right
+        if (xL > xR) {
+            std::swap(xL, xR);
+            std::swap(zL, zR);
+        }
+        
+        // Get starting and ending x-coordinates
+        int xStart = static_cast<int>(std::ceil(xL));
+        int xEnd = static_cast<int>(std::ceil(xR));
+        
+        // Calculate interpolation steps along the scanline
+        float dx = xR - xL;
+        float dz = (dx != 0) ? (zR - zL) / dx : 0;
+        
+        // Adjust for the first pixel
+        float xOffset = xStart - xL;
+        float z = zL + dz * xOffset;
+        
+        // Draw the scanline
+        for (int x = xStart; x < xEnd; x++) {
+            // Check if this pixel is in front (using z-buffer)
+            int index = y * width + x;
+            if (x >= 0 && x < width && y >= 0 && y < height && z < zBuffer[index]) {
+                frameBuffer[index] = color;
+                zBuffer[index] = z;
+            }
+            
+            // Increment for the next pixel
+            z += dz;
+        }
+        
+        // Update for the next scanline
+        xLeft += dxLeft;
+        xRight += dxRight;
+        zLeft += dzLeft;
+        zRight += dzRight;
     }
 } 

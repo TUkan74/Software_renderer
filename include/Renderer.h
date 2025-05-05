@@ -14,7 +14,8 @@ enum class RenderMode {
     WIREFRAME,          // Wireframe rendering
     SOLID,              // Solid color rendering
     TEXTURED,           // Textured rendering
-    TEXTURED_SHADED     // Textured with shading
+    TEXTURED_SHADED,    // Textured with shading
+    COLORFUL            // Colorful rendering
 };
 
 /**
@@ -106,6 +107,12 @@ private:
      * @param model Model to render
      */
     void renderTextured(const Model& model);
+
+    /**
+     * @brief Renders a model in colorful mode
+     * @param model Model to render
+     */
+    void renderColorful(const Model& model);
     
     /**
      * @brief Renders a model in textured and shaded mode
@@ -224,6 +231,48 @@ private:
      * @param color Color of the pixel
      */
     void setPixel(int x, int y, uint32_t color);
+
+    /**
+     * @brief Helper struct for vertex data with position
+     */
+    struct Vertex {
+        float x, y, z;
+    };
+
+    /**
+     * @brief Draws a triangle with z-buffer support
+     * @param v0 First vertex
+     * @param v1 Second vertex
+     * @param v2 Third vertex
+     * @param color Color of the triangle
+     */
+    void drawTriangle(Vertex v0, Vertex v1, Vertex v2, uint32_t color);
+
+    /**
+     * @brief Draws scanlines for triangle rasterization with z-buffer support
+     * @param yStart Start Y coordinate
+     * @param yEnd End Y coordinate 
+     * @param xLeft Left edge X
+     * @param dxLeft Left edge X increment
+     * @param xRight Right edge X
+     * @param dxRight Right edge X increment
+     * @param zLeft Left edge Z
+     * @param dzLeft Left edge Z increment
+     * @param zRight Right edge Z
+     * @param dzRight Right edge Z increment
+     * @param color Color to draw
+     */
+    void drawScanline(
+        int yStart, int yEnd,
+        float xLeft, float dxLeft, float xRight, float dxRight,
+        float zLeft, float dzLeft, float zRight, float dzRight,
+        uint32_t color);
+
+    /**
+     * @brief Generates a random color
+     * @return Random color as ARGB (uint32_t)
+     */
+    uint32_t generateRandomColor();
 
     int width;                          // Width of the output image
     int height;                         // Height of the output image
