@@ -35,56 +35,16 @@ bool Model::loadFromOBJ(const std::string& filename) {
         iss >> prefix;
         
         if (prefix == "v") {
-            // Vertex
-            float x, y, z;
-            iss >> x >> y >> z;
-            vertices.emplace_back(x, y, z);
+            parseVertex(iss);
         } 
         else if (prefix == "vt") {
-            // Texture coordinate
-            float u, v;
-            iss >> u >> v;
-            textureCoords.emplace_back(u, v);
+            parseTextureCoord(iss);
         } 
         else if (prefix == "vn") {
-            // Normal vector
-            float x, y, z;
-            iss >> x >> y >> z;
-            normals.emplace_back(x, y, z);
+            parseNormal(iss);
         } 
         else if (prefix == "f") {
-            // Face
-            Face face;
-            std::string vertexData;
-            
-            while (iss >> vertexData) {
-                std::istringstream viss(vertexData);
-                std::string indexStr;
-                
-                // Parse vertex index
-                std::getline(viss, indexStr, '/');
-                if (!indexStr.empty()) {
-                    // OBJ indices are 1-based, convert to 0-based
-                    face.vertexIndices.push_back(std::stoi(indexStr) - 1);
-                }
-                
-                // Parse texture coordinate index
-                std::getline(viss, indexStr, '/');
-                if (!indexStr.empty()) {
-                    face.textureIndices.push_back(std::stoi(indexStr) - 1);
-                }
-                
-                // Parse normal vector index
-                std::getline(viss, indexStr, '/');
-                if (!indexStr.empty()) {
-                    face.normalIndices.push_back(std::stoi(indexStr) - 1);
-                }
-            }
-            
-            // Only add faces with at least 3 vertices
-            if (face.vertexIndices.size() >= 3) {
-                faces.push_back(face);
-            }
+            parseFace(iss);
         }
     }
     
@@ -94,6 +54,66 @@ bool Model::loadFromOBJ(const std::string& filename) {
         vertices.size(), textureCoords.size(), normals.size(), faces.size());
     
     return !vertices.empty() && !faces.empty();
+}
+
+void Model::parseVertex(std::istringstream& iss) {
+    float x, y, z;
+    iss >> x >> y >> z;
+    vertices.emplace_back(x, y, z);
+}
+
+void Model::parseTextureCoord(std::istringstream& iss) {
+    float u, v;
+    iss >> u >> v;
+    textureCoords.emplace_back(u, v);
+}
+
+void Model::parseNormal(std::istringstream& iss) {
+    float x, y, z;
+    iss >> x >> y >> z;
+    normals.emplace_back(x, y, z);
+}
+
+void Model::parseFace(std::istringstream& iss) {
+    Face face;
+    std::string vertexData;
+    
+    while (iss >> vertexData) {
+        parseFaceVertex(vertexData, face);
+    }
+    
+    // Only add faces with at least 3 vertices
+    if (face.vertexIndices.size() >= 3) {
+        faces.push_back(face);
+    }
+}
+
+void Model::parseFaceVertex(const std::string& vertexData, Face& face) {
+    std::istringstream viss(vertexData);
+    std::string indexStr;
+    
+    // Parse vertex index
+    std::getline(viss, indexStr, '/');
+    if (!indexStr.empty()) {
+        face.vertexIndices.push_back(parseIndex(indexStr));
+    }
+    
+    // Parse texture coordinate index
+    std::getline(viss, indexStr, '/');
+    if (!indexStr.empty()) {
+        face.textureIndices.push_back(parseIndex(indexStr));
+    }
+    
+    // Parse normal vector index
+    std::getline(viss, indexStr, '/');
+    if (!indexStr.empty()) {
+        face.normalIndices.push_back(parseIndex(indexStr));
+    }
+}
+
+int Model::parseIndex(const std::string& indexStr) {
+    // OBJ indices are 1-based, convert to 0-based
+    return std::stoi(indexStr) - 1;
 }
 
 void Model::setTexture(const std::string& texturePath) {

@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <Eigen/Dense>
+#include <sstream>
 
 // Forward declarations
 class Texture;
@@ -77,6 +78,17 @@ public:
     std::shared_ptr<Texture> getTexture() const { return texture; }
 
 private:
+    // OBJ parsing helper methods
+    void parseVertex(std::istringstream& iss);
+    void parseTextureCoord(std::istringstream& iss);
+    void parseNormal(std::istringstream& iss);
+    void parseFace(std::istringstream& iss);
+    
+    // Face parsing helper methods
+    void parseFaceVertex(const std::string& vertexData, Face& face);
+    int parseIndex(const std::string& indexStr);
+    
+    // Data members
     std::vector<Eigen::Vector3f> vertices;      // Vertex positions
     std::vector<Eigen::Vector2f> textureCoords; // Texture coordinates
     std::vector<Eigen::Vector3f> normals;       // Normal vectors
