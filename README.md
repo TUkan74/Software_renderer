@@ -15,12 +15,14 @@ software-renderer/
 ├── build/                 # Directory for build artifacts
 ├── include/               # Header files
 │   ├── Application.h      # Main application class
+│   ├── CommandLineParser.h # Command line parsing
 │   ├── Model.h            # 3D model class
 │   ├── Renderer.h         # Renderer class
 │   ├── TestTexture.h      # Test texture generation
 │   └── Texture.h          # Texture handling
 ├── src/                   # Source files
 │   ├── Application.cpp    # Application implementation
+│   ├── CommandLineParser.cpp # Command line parsing implementation
 │   ├── main.cpp           # Entry point of the application
 │   ├── Model.cpp          # Model implementation
 │   ├── Renderer.cpp       # Renderer implementation
@@ -28,28 +30,42 @@ software-renderer/
 │   └── Texture.cpp        # Texture implementation
 ├── scripts/               # Build and utility scripts
 │   ├── build_windows.bat  # Windows build script
-│   ├── setup_and_build.bat # Setup and build script that uses portable CMake
-│   ├── simple_build_msvc.bat # Simple build script using MSVC directly
 │   └── run_examples.bat   # Script to run examples
 ├── examples/              # Example 3D models and textures
 │   └── cube.obj           # Sample cube 3D model
 ├── logs/                  # Directory for log files
 ├── CMakeLists.txt         # CMake configuration file
+├── DEVELOPER_GUIDE.md     # Guide for developers
+├── USER_GUIDE.md          # Guide for users
 └── README.md              # Project documentation (this file)
 ```
 
 ## Prerequisites
 
-### Tools
+### System Requirements
+- **Hardware Requirements**:
+  - CPU: Intel Core i3 or AMD Ryzen 3 or equivalent (minimum)
+  - RAM: 4GB (minimum), 8GB (recommended)
+  - GPU: Any GPU with DirectX 11 support (integrated graphics sufficient)
+  - Storage: 100MB free space
+
+### Windows
+- **Windows 10 or newer**
 - **Visual Studio 2022**: Ensure the C++ Build Tools workload is installed.
 - **CMake**: Version 3.10 or higher (automatically downloaded by setup script if needed).
 - **Git**: To clone the repository.
 
+### Linux
+- **Ubuntu 20.04 or newer / Fedora 33 or newer**
+- **GCC 9.0+ or Clang 10.0+**
+- **CMake**: Version 3.10 or higher
+- **Make or Ninja**: Build system
+- **Git**: To clone the repository
+
 ## Build Instructions
 
-### Windows - Quick Build
-
-The simplest way to build the project is:
+### Windows
+The simplest way to build the project on Windows is:
 
 ```cmd
 scripts\build_windows.bat build
@@ -61,21 +77,59 @@ This will:
 3. Build the project in Release mode
 4. Output the executable in `build\Release\software-renderer.exe`
 
-If you encounter any issues with CMake, you can try:
+#### Additional Build Options
+- Clean build: `scripts\build_windows.bat clean`
+- Rebuild: `scripts\build_windows.bat rebuild`
+- Full rebuild: `scripts\build_windows.bat rebuild all`
 
-```cmd
-scripts\simple_build_msvc.bat
+### Linux
+To build the project on Linux, use standard CMake commands:
+
+#### Using Make
+```bash
+# Create build directory
+mkdir -p build && cd build
+
+# Configure
+cmake ..
+
+# Build
+make -j$(nproc)
+
+# Run
+./software-renderer
 ```
 
-This bypasses CMake entirely and uses MSBuild directly.
+#### Using Ninja (faster builds)
+```bash
+# Install ninja if not present
+# sudo apt-get install ninja-build (Ubuntu/Debian)
+# sudo dnf install ninja-build (Fedora)
+
+# Create build directory
+mkdir -p build && cd build
+
+# Configure with Ninja
+cmake -G Ninja ..
+
+# Build
+ninja
+
+# Run
+./software-renderer
+```
 
 ### Troubleshooting Build Issues
 
 If you encounter build errors:
 
-1. **CMake Not Found**: The script will check common installation paths. If needed, install CMake from [cmake.org](https://cmake.org/download/)
+1. **CMake Not Found**: 
+   - Windows: The script will check common installation paths or install it automatically
+   - Linux: Install via package manager (`apt-get install cmake` or `dnf install cmake`)
 
-2. **Visual Studio Issues**: Ensure Visual Studio 2022 with C++ build tools is installed
+2. **Compiler Issues**: 
+   - Windows: Ensure Visual Studio 2022 with C++ build tools is installed
+   - Linux: Install GCC/Clang via package manager
 
 3. **Build Failures**: Check the `logs/app.log` file for detailed error messages
 
@@ -101,34 +155,24 @@ Options:
   --generate-test-textures Generate test textures in the examples directory
 ```
 
-### Supported File Formats
-
-- **3D Models**: Wavefront OBJ (.obj) files
-- **Textures**: Uncompressed TGA (.tga) files
-  - Supports Type 2 (uncompressed RGB/RGBA)
-  - Supports Type 3 (uncompressed grayscale)
-  - Does NOT support Type 10 (RLE compressed)
-
 ### Basic Examples
 
 #### Generate Test Textures
 ```cmd
+# Windows
 .\build\Release\software-renderer.exe --generate-test-textures
+
+# Linux
+./build/software-renderer --generate-test-textures
 ```
 
 #### Render a Cube in Wireframe Mode
 ```cmd
+# Windows
 .\build\Release\software-renderer.exe --input examples\cube.obj --output cube_wireframe.tga --mode wireframe
-```
 
-#### Render a Cube in Solid Mode
-```cmd
-.\build\Release\software-renderer.exe --input examples\cube.obj --output cube_solid.tga --mode solid
-```
-
-#### Render a Cube with Texture
-```cmd
-.\build\Release\software-renderer.exe --input examples\cube.obj --texture examples\checker_32.tga --output cube_textured.tga --mode textured
+# Linux
+./build/software-renderer --input examples/cube.obj --output cube_wireframe.tga --mode wireframe
 ```
 
 ### Using Your Own Models
@@ -138,38 +182,18 @@ To use your own 3D models:
 1. Place your OBJ file in the `examples` directory or any subdirectory
 2. Run the software renderer with the path to your model:
    ```cmd
+   # Windows
    .\build\Release\software-renderer.exe --input examples\your_model.obj --output your_model.tga --mode solid
+   
+   # Linux
+   ./build/software-renderer --input examples/your_model.obj --output your_model.tga --mode solid
    ```
 
-If you want to use textures, make sure they are uncompressed TGA files (Type 2). Some modeling software exports compressed TGA files which won't work with this renderer.
+## Documentation
 
-### Viewing Output Files
-
-The renderer outputs TGA files, which can be viewed with:
-- [IrfanView](https://www.irfanview.com/) (Windows)
-- [GIMP](https://www.gimp.org/) (cross-platform)
-- [Paint.NET](https://www.getpaint.net/) (Windows)
-
-You can also convert TGA files to more common formats like PNG or JPG using these programs.
-
-## Development
-
-### Adding New Models
-
-Add your OBJ files to the `examples` directory. Models with high polygon counts may render slowly.
-
-### Extending the Renderer
-
-The core rendering logic is in `src/Renderer.cpp`. Key areas to extend:
-- `renderWireframe()`: Wireframe rendering logic
-- `renderSolid()`: Solid color rendering with basic lighting
-- `renderTextured()`: Texture mapping implementation
-
-## Common Issues
-
-- **Upside-down Models**: Some OBJ files use different coordinate systems. The renderer is configured to display models properly.
-- **Texture Loading Errors**: Check if your TGA file is compressed (Type 10). Only uncompressed TGA files (Type 2) are supported.
-- **Performance**: The renderer is educational and not optimized for speed. Complex models may render slowly.
+For more detailed information:
+- **User Guide**: See [USER_GUIDE.md](USER_GUIDE.md) for comprehensive usage instructions
+- **Developer Guide**: See [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for architecture details, class diagrams, and extending the renderer
 
 ## License
 

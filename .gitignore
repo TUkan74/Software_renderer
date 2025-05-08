@@ -22,3 +22,6 @@ temp/*
 
 # Visual Studio
 .vs/*
+
+# Ignore all output files
+*.tga
