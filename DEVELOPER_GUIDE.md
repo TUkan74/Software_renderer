@@ -21,60 +21,37 @@ The Software Renderer is built with a modular architecture that separates concer
 
 ## Class Diagram
 
-```mermaid
-classDiagram
-    class Renderer {
-        -int width
-        -int height
-        -RenderMode renderMode
-        -vector<uint32_t> frameBuffer
-        -vector<float> zBuffer
-        -Matrix4f viewMatrix
-        -Matrix4f projectionMatrix
-        -Matrix4f modelMatrix
-        +Renderer(int width, int height)
-        +setRenderMode(RenderMode mode)
-        +render(const Model& model)
-        +clearBuffer(uint32_t color)
-        +saveImage(const string& filename)
-    }
+The following UML class diagram represents the core classes of the Software Renderer and their relationships:
 
-    class Model {
-        -vector<Vector3f> vertices
-        -vector<Face> faces
-        -vector<Vector3f> normals
-        -vector<Vector2f> texCoords
-        -shared_ptr<Texture> texture
-        +getVertices()
-        +getFaces()
-        +getNormals()
-        +getTextureCoords()
-        +getTexture()
-    }
+![image](images\image.png)
 
-    class Texture {
-        -int width
-        -int height
-        -vector<uint32_t> data
-        +getColorAt(float u, float v)
-        +saveToTGA(const string& filename)
-    }
+### Class Relationships
 
-    class Vertex {
-        +float x
-        +float y
-        +float z
-        +float u
-        +float v
-        +float nx
-        +float ny
-        +float nz
-    }
+1. **Composition**:
+   - The `Renderer` class contains instances of frame buffer and Z-buffer arrays
+   - The `Model` class contains arrays of vertices, faces, normals, and texture coordinates
 
-    Renderer --> Model : renders
-    Model --> Texture : uses
-    Model --> Vertex : contains
-```
+2. **Aggregation**:
+   - The `Renderer` aggregates a `Model` during rendering (doesn't own it)
+   - The `Model` aggregates a `Texture` (can exist without it)
+
+3. **Dependency**:
+   - The `Renderer` class depends on the `RenderMode` enum for setting render modes
+   - The `CommandLine` class depends on `RenderMode` for parsing render mode options
+
+4. **Association**:
+   - The `Renderer` uses `Vertex` objects during the rendering pipeline
+   - The `Model` class references `Face` objects to describe polygon topology
+
+### Key Design Patterns
+
+1. **Factory Method Pattern**:
+   - `Model::loadFromOBJ()` acts as a factory method for creating model instances
+   - `Texture::loadFromTGA()` serves as a factory method for textures
+
+2. **Strategy Pattern**:
+   - Different rendering methods (wireframe, solid, textured) implement different rendering strategies
+   - The `RenderMode` enum is used to select the appropriate rendering strategy
 
 ## Core Components
 
@@ -108,6 +85,20 @@ Key features:
 - UV coordinate sampling
 - Mipmapping (planned)
 - Texture filtering
+
+### CommandLineParser Class
+
+The `CommandLineParser` class handles parsing and validating command-line arguments for the application.
+
+Key features:
+- Command-line argument parsing
+- Support for input and output file paths
+- Rendering mode selection
+- Validation of required parameters
+- Default values for optional parameters
+- Help documentation
+
+The CommandLineParser provides a clean interface for accessing command-line options:
 
 ## Extending the Renderer
 
@@ -238,6 +229,8 @@ The project uses CMake for build configuration. Key build files:
 
 ### Building from Source
 
+#### Windows Build
+
 1. **Prerequisites**
    - CMake 3.10+
    - Visual Studio 2022
@@ -253,22 +246,55 @@ The project uses CMake for build configuration. Key build files:
    scripts\build_windows.bat rebuild
    ```
 
-## Testing
+#### Linux Build
 
-### Unit Tests
+1. **Prerequisites**
+   - CMake 3.10+
+   - GCC 9.0+ or Clang 10.0+
+   - C++17 compiler
+   - Make 
 
-The project includes unit tests for core functionality. Run tests using:
+2. **Build Steps using Make**
+   ```bash
+   # Create and enter build directory
+   mkdir -p build && cd build
+   
+   # Configure with CMake
+   cmake ..
+   
+   # Build the project
+   make -j$(nproc)
+   
+   # Run the application
+   ./software-renderer
+   ```
 
-```batch
-scripts\build_windows.bat test
-```
+### Development Workflow
 
-### Test Coverage
+1. **Setup**
+   ```bash
+   # Clone the repository
+   git clone [repository]
+   cd software-renderer
+   
+   # Windows build
+   scripts\build_windows.bat build
+   
+   # Linux build
+   mkdir -p build && cd build
+   cmake ..
+   make -j$(nproc)
+   ```
 
-- Geometry processing
-- Rendering modes
-- Texture sampling
-- Camera operations
+2. **Development**
+   - Make changes
+   - Build and test
+   - Update documentation
+
+4. **Documentation**
+   - Update API documentation
+   - Add usage examples
+   - Update class diagrams
 
 ## Contributing
 
@@ -286,27 +312,3 @@ scripts\build_windows.bat test
 3. Add tests
 4. Update documentation
 5. Submit pull request
-
-### Development Workflow
-
-1. **Setup**
-   ```batch
-   git clone [repository]
-   cd software-renderer
-   scripts\build_windows.bat build
-   ```
-
-2. **Development**
-   - Make changes
-   - Build and test
-   - Update documentation
-
-3. **Testing**
-   - Run unit tests
-   - Verify rendering output
-   - Check performance
-
-4. **Documentation**
-   - Update API documentation
-   - Add usage examples
-   - Update class diagrams 
