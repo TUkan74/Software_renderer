@@ -217,6 +217,65 @@ software-renderer.exe --input model.obj --output render.tga
 ./software-renderer --input model.obj --output render.tga
 ```
 
+### Advanced Examples
+
+1. **Complete Rendering with Camera Control**
+```batch
+# Windows
+.\build\Release\software-renderer.exe --input examples\diablo3_pose\diablo3_pose.obj --output diablo_shaded.tga --texture examples\diablo3_pose\diablo3_pose_diffuse.tga --mode shaded --camera-x 0 --camera-y 0 --camera-z 3
+
+# Linux
+./build/software-renderer --input examples/diablo3_pose/diablo3_pose.obj --output diablo_shaded.tga --texture examples/diablo3_pose/diablo3_pose_diffuse.tga --mode shaded --camera-x 0 --camera-y 0 --camera-z 3
+```
+
+2. **Custom Resolution with Different Rendering Mode**
+```batch
+# Windows
+.\build\Release\software-renderer.exe --input model.obj --output highres.tga --width 1920 --height 1080 --mode shaded --texture texture.tga --camera-x 2 --camera-y 1 --camera-z 4
+
+# Linux
+./build/software-renderer --input model.obj --output highres.tga --width 1920 --height 1080 --mode shaded --texture texture.tga --camera-x 2 --camera-y 1 --camera-z 4
+```
+
+3. **Debug Visualization with Colorful Mode**
+```batch
+# Windows
+.\build\Release\software-renderer.exe --input complex_model.obj --output debug_view.tga --mode colorful --width 800 --height 600 --camera-x 0 --camera-y 0 --camera-z 5
+
+# Linux
+./build/software-renderer --input complex_model.obj --output debug_view.tga --mode colorful --width 800 --height 600 --camera-x 0 --camera-y 0 --camera-z 5
+```
+
+4. **Wireframe Analysis with Custom Camera Position**
+```batch
+# Windows
+.\build\Release\software-renderer.exe --input model.obj --output wireframe_analysis.tga --mode wireframe --camera-x 1.5 --camera-y 0.5 --camera-z 2.5
+
+# Linux
+./build/software-renderer --input model.obj --output wireframe_analysis.tga --mode wireframe --camera-x 1.5 --camera-y 0.5 --camera-z 2.5
+```
+
+### Command Line Options Reference
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--input` | Input OBJ model file | `--input model.obj` |
+| `--output` | Output TGA image file | `--output render.tga` |
+| `--texture` | Texture file (TGA format) | `--texture texture.tga` |
+| `--mode` | Rendering mode | `--mode shaded` |
+| `--width` | Output image width | `--width 1920` |
+| `--height` | Output image height | `--height 1080` |
+| `--camera-x` | Camera X position | `--camera-x 0` |
+| `--camera-y` | Camera Y position | `--camera-y 0` |
+| `--camera-z` | Camera Z position | `--camera-z 3` |
+
+Available rendering modes:
+- `wireframe`: Shows model edges
+- `solid`: Filled triangles with basic shading
+- `textured`: Applies textures to the model
+- `shaded`: Combines textures with lighting
+- `colorful`: Random colors for visualization
+
 ## Troubleshooting
 
 ### Common Issues
