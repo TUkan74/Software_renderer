@@ -301,6 +301,68 @@ Available rendering modes:
    - Verify model has proper UV coordinates for textured modes
    - Ensure model has proper normals for shaded modes
 
+### Common Error Messages
+
+1. **"Failed to open model file: [filename]"**
+   - **Cause**: The specified model file cannot be found or accessed
+   - **Solution**: 
+     - Check if the file path is correct
+     - Verify the file exists in the specified location
+     - Ensure you have read permissions for the file
+     - On Windows, use backslashes (`\`) in paths
+     - On Linux, use forward slashes (`/`) in paths
+
+2. **"Failed to open texture file: [filename]"**
+   - **Cause**: The specified texture file cannot be found or accessed
+   - **Solution**:
+     - Verify the texture file exists
+     - Check if the texture is in TGA format
+     - Ensure the texture file is not corrupted
+     - Make sure the texture path is correct relative to the executable
+
+3. **"Failed to save image: [filename]"**
+   - **Cause**: Cannot write to the specified output location
+   - **Solution**:
+     - Check if you have write permissions in the target directory
+     - Ensure the target directory exists
+     - Verify there's enough disk space
+     - Make sure the filename is valid
+
+4. **"Invalid rendering mode: [mode]"**
+   - **Cause**: The specified rendering mode is not supported
+   - **Solution**:
+     - Use one of the supported modes: `wireframe`, `solid`, `textured`, `shaded`, or `colorful`
+     - Check for typos in the mode name
+     - Ensure the mode name is in lowercase
+
+5. **"Model has no texture coordinates"**
+   - **Cause**: Trying to use textured or shaded mode with a model that lacks UV coordinates
+   - **Solution**:
+     - Use a different rendering mode (wireframe, solid, or colorful)
+     - Export the model with UV coordinates from your 3D modeling software
+     - Check if the model file is properly formatted
+
+6. **"Model has no normals"**
+   - **Cause**: Trying to use shaded mode with a model that lacks normal vectors
+   - **Solution**:
+     - Use a different rendering mode
+     - Export the model with normals from your 3D modeling software
+     - Check if the model file is properly formatted
+
+7. **"Invalid camera position"**
+   - **Cause**: Camera position values are out of reasonable range
+   - **Solution**:
+     - Use values between -10 and 10 for camera positions
+     - Ensure the camera is not too close to or inside the model
+     - Try different camera positions to find a good viewing angle
+
+8. **"Invalid image dimensions"**
+   - **Cause**: Specified width or height is invalid
+   - **Solution**:
+     - Use positive values for width and height
+     - Keep dimensions reasonable (e.g., 100-4096 pixels)
+     - Ensure the total image size doesn't exceed available memory
+
 ### Getting Help
 
 If you encounter issues not covered in this guide:
