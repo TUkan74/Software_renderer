@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <stdexcept>
+#include <iostream>
 
 Model::Model(const std::string& filename) {
     if (!loadFromOBJ(filename)) {

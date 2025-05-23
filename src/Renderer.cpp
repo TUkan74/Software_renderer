@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <stdio.h>
 
 // Define M_PI if not available (Windows MSVC doesn't define it by default)
 #ifndef M_PI

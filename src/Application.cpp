@@ -1,6 +1,7 @@
 #include "Application.h"
 #include <spdlog/spdlog.h>
 #include <stdexcept>
+#include <iostream>
 
 Application::Application(int width, int height) : width(width), height(height) {
     spdlog::info("Initializing Application with width={}, height={}", width, height);
@@ -119,7 +120,13 @@ bool Application::saveImage(const std::string& filename) {
     }
     
     try {
-        return renderer->saveImage(filename);
+        if (renderer->saveImage(filename)) {
+            spdlog::info("Image saved successfully to {}", filename);
+            return true;
+        } else {
+            spdlog::error("Failed to save image to {}", filename);
+            return false;
+        }
     }
     catch (const std::exception& e) {
         spdlog::error("Failed to save image: {}", e.what());

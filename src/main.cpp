@@ -1,5 +1,6 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <Eigen/Dense>
 #include <iostream>
 #include <filesystem>
@@ -43,9 +44,14 @@ int main(int argc, char* argv[]) {
             fs::create_directory("logs");
         }
         
-        // Initialize logger
-        auto logger = spdlog::basic_logger_mt("basic_logger", "logs/app.log");
+        // Initialize logger with both console and file sinks
+        auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("logs/app.log", true);
+        
+        std::vector<spdlog::sink_ptr> sinks {console_sink, file_sink};
+        auto logger = std::make_shared<spdlog::logger>("basic_logger", sinks.begin(), sinks.end());
         spdlog::set_default_logger(logger);
+        
         spdlog::info("Software Renderer started");
         
         // Parse command line arguments
@@ -60,7 +66,6 @@ int main(int argc, char* argv[]) {
         // Generate test textures if requested
         if (config.generateTestTextures) {
             ::generateTestTextures();
-            std::cout << "Test textures generated in the examples directory." << std::endl;
             
             // If no input file is specified, exit after generating textures
             if (config.inputFile.empty()) {
@@ -115,7 +120,6 @@ int main(int argc, char* argv[]) {
         }
         
         spdlog::info("Rendering completed. Output saved to {}", config.outputFile);
-        std::cout << "Rendering completed. Output saved to " << config.outputFile << std::endl;
         
         return 0;
     }
