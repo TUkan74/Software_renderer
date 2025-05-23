@@ -16,10 +16,10 @@ Software Renderer is a 3D rendering application that allows you to render 3D mod
 
 ### System Requirements
 - **Hardware Requirements**:
-  - CPU: Intel Core i3 or AMD Ryzen 3 or equivalent (minimum)
-  - RAM: 4GB (minimum), 8GB (recommended)
-  - GPU: Any GPU with DirectX 11 support (integrated graphics sufficient)
-  - Storage: 100MB free space
+  - CPU: Any modern dual-core processor (1.6 GHz or higher)
+  - RAM: 2GB (minimum), 4GB (recommended)
+  - GPU: Any GPU or integrated graphics
+  - Storage: 50MB free space
 - **Windows Requirements**:
   - Windows 10 or newer
   - Visual Studio 2022 with C++ Build Tools
