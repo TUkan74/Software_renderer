@@ -15,7 +15,10 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/examples)
 include_directories(include)
 
 # Source files - gather all cpp files in src directory
-file(GLOB SRC_FILES src/*.cpp)
+file(GLOB SRC_FILES 
+    src/*.cpp
+    src/TGATextureLoader.cpp
+)
 
 # Add executable
 add_executable(software-renderer ${SRC_FILES})
