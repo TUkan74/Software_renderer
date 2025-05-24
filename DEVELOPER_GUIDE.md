@@ -46,14 +46,56 @@ The following UML class diagram represents the core classes of the Software Rend
 ### Key Design Patterns
 
 1. **Factory Method Pattern**:
-   - `Model::loadFromOBJ()` acts as a factory method for creating model instances
-   - `Texture::loadFromTGA()` serves as a factory method for textures
+   - `ModelLoaderFactory` and `TextureLoaderFactory` provide factory methods for creating loaders
+   - Each factory manages a registry of loaders for different file formats
 
 2. **Strategy Pattern**:
-   - Different rendering methods (wireframe, solid, textured) implement different rendering strategies
-   - The `RenderMode` enum is used to select the appropriate rendering strategy
+   - `IRenderStrategy` interface defines different rendering strategies
+   - `RenderMode` enum is used to select the appropriate rendering strategy
+
+3. **Interface Segregation**:
+   - `IModelLoader` interface for model loading
+   - `ITextureLoader` interface for texture loading
+   - `IRenderStrategy` interface for rendering strategies
 
 ## Core Components
+
+### Abstract Interfaces
+
+#### IModelLoader Interface
+```cpp
+class IModelLoader {
+    virtual std::shared_ptr<Model> loadModel(const std::string& filename) = 0;
+};
+```
+
+#### ITextureLoader Interface
+```cpp
+class ITextureLoader {
+    virtual std::shared_ptr<Texture> loadTexture(const std::string& filename) = 0;
+    virtual bool saveTexture(const Texture& texture, const std::string& filename) = 0;
+};
+```
+
+#### IRenderStrategy Interface
+```cpp
+class IRenderStrategy {
+    virtual void render(const Model& model, Renderer& renderer) = 0;
+    virtual std::string getName() const = 0;
+};
+```
+
+### Factory Classes
+
+#### ModelLoaderFactory
+- Manages registration and creation of model loaders
+- Supports different file formats through registered loaders
+- Default implementation includes OBJ model loader
+
+#### TextureLoaderFactory
+- Manages registration and creation of texture loaders
+- Supports different texture formats through registered loaders
+- Default implementation includes TGA texture loader
 
 ### Renderer Class
 
@@ -98,25 +140,23 @@ Key features:
 - Default values for optional parameters
 - Help documentation
 
-The CommandLineParser provides a clean interface for accessing command-line options:
+## API Reference
 
-## Extending the Renderer
+### Application API
 
-### Adding New Rendering Modes
-
-1. Add a new mode to the `RenderMode` enum
-2. Implement the rendering function in the `Renderer` class
-3. Add the mode to the render mode selection logic
-
-Example:
 ```cpp
-enum class RenderMode {
-    WIREFRAME,
-    SOLID,
-    TEXTURED,
-    TEXTURED_SHADED,
-    COLORFUL,
-    YOUR_NEW_MODE  // Add your mode here
+class Application {
+public:
+    Application(int width, int height);
+    bool initialize();
+    bool loadModel(const std::string& filename);
+    bool setTexture(const std::string& filename);
+    void setCameraPosition(float x, float y, float z);
+    void setRenderMode(RenderMode mode);
+    bool render();
+    bool saveImage(const std::string& filename);
+    int getWidth() const;
+    int getHeight() const;
 };
 ```
 
@@ -163,27 +203,20 @@ enum class RenderMode {
    - Implements backface culling to improve rendering efficiency
    - Helpful for visualization and debugging of model geometry
 
-## API Reference
-
 ### Renderer API
 
 ```cpp
 class Renderer {
 public:
-    // Constructor
     Renderer(int width, int height);
-
-    // Rendering modes
-    void setRenderMode(RenderMode mode);
-    void render(const Model& model);
-
-    // Camera control
     void setCameraPosition(const Vector3f& position);
     void setCameraTarget(const Vector3f& target);
-
-    // Buffer management
+    void setRenderMode(RenderMode mode);
+    void render(const Model& model);
     void clearBuffer(uint32_t color);
-    bool saveImage(const string& filename);
+    bool saveImage(const std::string& filename);
+    int getWidth() const;
+    int getHeight() const;
 };
 ```
 
@@ -192,11 +225,13 @@ public:
 ```cpp
 class Model {
 public:
-    // Geometry access
+    Model(const std::string& filename);
+    bool loadFromOBJ(const std::string& filename);
+    void setTexture(const std::string& texturePath);
     const vector<Vector3f>& getVertices() const;
-    const vector<Face>& getFaces() const;
-    const vector<Vector3f>& getNormals() const;
     const vector<Vector2f>& getTextureCoords() const;
+    const vector<Vector3f>& getNormals() const;
+    const vector<Face>& getFaces() const;
     shared_ptr<Texture> getTexture() const;
 };
 ```
@@ -219,6 +254,73 @@ void drawScanline(
 // Random color generation for colorful rendering mode
 uint32_t generateRandomColor();
 ```
+
+## Extending the Renderer
+
+### Adding New Model Loaders
+
+1. Implement the `IModelLoader` interface
+2. Register the loader with `ModelLoaderFactory`
+
+Example:
+```cpp
+class MyModelLoader : public IModelLoader {
+public:
+    std::shared_ptr<Model> loadModel(const std::string& filename) override;
+};
+
+// Register the loader
+ModelLoaderFactory::registerLoader("myformat", std::make_shared<MyModelLoader>());
+```
+
+### Adding New Texture Loaders
+
+1. Implement the `ITextureLoader` interface
+2. Register the loader with `TextureLoaderFactory`
+
+Example:
+```cpp
+class MyTextureLoader : public ITextureLoader {
+public:
+    std::shared_ptr<Texture> loadTexture(const std::string& filename) override;
+    bool saveTexture(const Texture& texture, const std::string& filename) override;
+};
+
+// Register the loader
+TextureLoaderFactory::registerLoader("myformat", std::make_shared<MyTextureLoader>());
+```
+
+### Adding New Rendering Modes
+
+1. Add a new mode to the `RenderMode` enum
+2. Implement the rendering function in the `Renderer` class
+3. Add the mode to the render mode selection logic
+
+Example:
+```cpp
+enum class RenderMode {
+    WIREFRAME,
+    SOLID,
+    TEXTURED,
+    TEXTURED_SHADED,
+    COLORFUL,
+    YOUR_NEW_MODE  // Add your mode here
+};
+```
+
+### Adding New Features
+
+1. **New Shading Models**
+   - Implement new shading functions
+   - Add to the appropriate rendering mode
+
+2. **New Texture Features**
+   - Extend the Texture class
+   - Implement new sampling methods
+
+3. **New Geometry Features**
+   - Add new vertex attributes
+   - Implement new geometry processing
 
 ## Build System
 
