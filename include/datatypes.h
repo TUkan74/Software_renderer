@@ -1,3 +1,17 @@
+#pragma once
+#include <Eigen/Dense>
+
+using Vector2 = Eigen::Vector2f;
+using Vector3 = Eigen::Vector3f;
+
+enum class RenderMode {
+    WIREFRAME,
+    SOLID,
+    TEXTURED,
+    TEXTURED_SHADED,
+    COLORFUL
+};
+
 #ifndef DATATYPES_H
 #define DATATYPES_H
 

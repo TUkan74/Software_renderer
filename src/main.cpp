@@ -7,6 +7,8 @@
 #include "Application.h"
 #include "TestTexture.h"
 #include "CommandLineParser.h"
+#include "TGATextureLoader.h"
+#include "TextureLoaderFactory.h"
 
 namespace fs = std::filesystem;
 
@@ -53,6 +55,9 @@ int main(int argc, char* argv[]) {
         spdlog::set_default_logger(logger);
         
         spdlog::info("Software Renderer started");
+        
+        // Register texture loaders
+        TextureLoaderFactory::registerLoader("tga", std::make_shared<TGATextureLoader>());
         
         // Parse command line arguments
         CommandLineParser parser(argc, argv);

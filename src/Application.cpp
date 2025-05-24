@@ -1,7 +1,12 @@
 #include "Application.h"
+#include "ModelLoaderFactory.h"
+#include "TextureLoaderFactory.h"
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <iostream>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 Application::Application(int width, int height) : width(width), height(height) {
     spdlog::info("Initializing Application with width={}, height={}", width, height);
@@ -29,7 +34,19 @@ bool Application::initialize() {
 
 bool Application::loadModel(const std::string& filename) {
     try {
-        model = std::make_shared<Model>(filename);
+        // Get file extension
+        fs::path path(filename);
+        std::string extension = path.extension().string().substr(1); // Remove the dot
+        
+        // Get appropriate loader
+        auto loader = ModelLoaderFactory::createLoader(extension);
+        if (!loader) {
+            spdlog::error("No loader available for file extension: {}", extension);
+            return false;
+        }
+        
+        // Load the model
+        model = loader->loadModel(filename);
         spdlog::info("Model loaded successfully");
         return true;
     }
@@ -46,7 +63,20 @@ bool Application::setTexture(const std::string& filename) {
     }
     
     try {
-        model->setTexture(filename);
+        // Get file extension
+        fs::path path(filename);
+        std::string extension = path.extension().string().substr(1); // Remove the dot
+        
+        // Get appropriate texture loader
+        auto loader = TextureLoaderFactory::createLoader(extension);
+        if (!loader) {
+            spdlog::error("No texture loader available for file extension: {}", extension);
+            return false;
+        }
+        
+        // Load the texture
+        auto texture = loader->loadTexture(filename);
+        model->setTexture(texture);
         spdlog::info("Texture set successfully");
         return true;
     }

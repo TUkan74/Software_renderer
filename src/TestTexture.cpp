@@ -2,6 +2,7 @@
 #include <spdlog/spdlog.h>
 #include <cmath>
 #include <fstream>
+#include <iostream>
 
 /**
  * @brief Generates a test checkerboard texture and saves it directly using a robust approach
@@ -13,6 +14,7 @@
  */
 bool generateCheckerboardTexture(int width, int height, int checkerSize, const std::string& filename) {
     spdlog::info("Generating checkerboard texture {}x{} with checker size {}", width, height, checkerSize);
+    std::cout << "Generating checkerboard texture " << width << "x" << height << " with checker size " << checkerSize << std::endl;
     
     // Create the texture data
     std::vector<uint32_t> data(width * height);
@@ -37,6 +39,7 @@ bool generateCheckerboardTexture(int width, int height, int checkerSize, const s
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         spdlog::error("Could not open file for writing: {}", filename);
+        std::cout << "Could not open file for writing: " << filename << std::endl;
         return false;
     }
     
@@ -68,6 +71,7 @@ bool generateCheckerboardTexture(int width, int height, int checkerSize, const s
     
     file.close();
     spdlog::info("Checkerboard texture saved successfully to {}", filename);
+    std::cout << "Checkerboard texture saved successfully to " << filename << std::endl;
     return true;
 }
 
@@ -80,6 +84,7 @@ bool generateCheckerboardTexture(int width, int height, int checkerSize, const s
  */
 bool generateGradientTexture(int width, int height, const std::string& filename) {
     spdlog::info("Generating gradient texture {}x{}", width, height);
+    std::cout << "Generating gradient texture " << width << "x" << height << std::endl;
     
     // Create the texture data
     std::vector<uint32_t> data(width * height);
@@ -98,6 +103,7 @@ bool generateGradientTexture(int width, int height, const std::string& filename)
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         spdlog::error("Could not open file for writing: {}", filename);
+        std::cout << "Could not open file for writing: " << filename << std::endl;
         return false;
     }
     
@@ -129,12 +135,14 @@ bool generateGradientTexture(int width, int height, const std::string& filename)
     
     file.close();
     spdlog::info("Gradient texture saved successfully to {}", filename);
+    std::cout << "Gradient texture saved successfully to " << filename << std::endl;
     return true;
 }
 
 // This function can be called from main.cpp to generate test textures
 void generateTestTextures() {
     spdlog::info("Generating test textures...");
+    std::cout << "Generating test textures..." << std::endl;
     
     // Create checkerboard textures with different sizes
     generateCheckerboardTexture(256, 256, 32, "examples/checker_32.tga");
@@ -144,4 +152,5 @@ void generateTestTextures() {
     generateGradientTexture(256, 256, "examples/gradient.tga");
     
     spdlog::info("Test textures generated successfully");
+    std::cout << "Test textures generated successfully" << std::endl;
 } 
